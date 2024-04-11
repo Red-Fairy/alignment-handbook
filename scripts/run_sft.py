@@ -142,6 +142,9 @@ def main():
         desc="Applying chat template",
     )
 
+    # only take 1000 samples for debug
+    raw_datasets = raw_datasets.filter(lambda x, i: i < 2000, with_indices=True)
+
     ##########################
     # Decontaminate benchmarks
     ##########################
@@ -154,6 +157,11 @@ def main():
 
     train_dataset = raw_datasets["train"]
     eval_dataset = raw_datasets["test"]
+
+    print(train_dataset[0].keys())
+    for k, v in train_dataset[0].items():
+        print(k, v)
+    exit()
 
     with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
         for index in random.sample(range(len(raw_datasets["train"])), 3):
@@ -172,7 +180,7 @@ def main():
         max_seq_length=training_args.max_seq_length,
         tokenizer=tokenizer,
         packing=True,
-        peft_config=get_peft_config(model_args),
+        # peft_config=get_peft_config(model_args),
         dataset_kwargs=training_args.dataset_kwargs,
     )
 
@@ -215,16 +223,16 @@ def main():
     ##########
     # Evaluate
     ##########
-    if training_args.do_eval:
-        logger.info("*** Evaluate ***")
-        metrics = trainer.evaluate()
-        metrics["eval_samples"] = len(eval_dataset)
-        trainer.log_metrics("eval", metrics)
-        trainer.save_metrics("eval", metrics)
+    # if training_args.do_eval:
+    #     logger.info("*** Evaluate ***")
+    #     metrics = trainer.evaluate()
+    #     metrics["eval_samples"] = len(eval_dataset)
+    #     trainer.log_metrics("eval", metrics)
+    #     trainer.save_metrics("eval", metrics)
 
-    if training_args.push_to_hub is True:
-        logger.info("Pushing to hub...")
-        trainer.push_to_hub(**kwargs)
+    # if training_args.push_to_hub is True:
+    #     logger.info("Pushing to hub...")
+    #     trainer.push_to_hub(**kwargs)
 
     logger.info("*** Training complete ***")
 
