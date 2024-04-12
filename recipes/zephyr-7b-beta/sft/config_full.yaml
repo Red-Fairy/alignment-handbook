@@ -36,7 +36,6 @@ output_dir: data/zephyr-7b-sft-full
 overwrite_output_dir: true
 per_device_eval_batch_size: 4
 per_device_train_batch_size: 4
-push_to_hub: true
 remove_unused_columns: true
 report_to:
 - tensorboard

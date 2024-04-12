@@ -91,72 +91,113 @@ def main():
         configs=data_args.dataset_configs,
         columns_to_keep=["messages", "chosen", "rejected", "prompt", "completion", "label"],
     )
+    raw_datasets.rename_column('messages', 'text')
+
     logger.info(
         f"Training on the following datasets and their proportions: {[split + ' : ' + str(dset.num_rows) for split, dset in raw_datasets.items()]}"
     )
-    column_names = list(raw_datasets["train"].features)
 
     ################
     # Load tokenizer
+    # The visual modality has 2048 tokens, and the action modality has 256 tokens, add them to the tokenizer
+    # Add special tokens for the visual and action modalities, 
+    #     including <bot_i>, <eot_i>, <bov_i>, <eov_i>, <boa_i>, <eoa_i>, <bov_o>, <eov_o>, <boa_o>, <eoa_o>
+    # In total 2048 + 256 + 10 = 2314 tokens to add
     ################
-    tokenizer = get_tokenizer(model_args, data_args)
+    tokenizer = transformers.AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
+    visual_tokens_to_add = ['<v' + str(i) + '>' for i in range(0, 2048)]
+    action_tokens_to_add = ['<a' + str(i) + '>' for i in range(0, 256)]
+    num_added_visual_tokens = tokenizer.add_tokens(visual_tokens_to_add)
+    num_added_action_tokens = tokenizer.add_tokens(action_tokens_to_add)
+    special_tokens = ['<bot_i>', '<eot_i>', '<bov_i>', '<eov_i>', '<boa_i>', '<eoa_i>', 
+                            '<bov_o>', '<eov_o>', '<boa_o>', '<eoa_o>']
+    num_added_special_tokens = tokenizer.add_special_tokens({'VLA_special_tokens': special_tokens})
+    tokenizer.add_special_tokens({"padding": "<pad>"})
 
     #######################
     # Load pretrained model
     #######################
     logger.info("*** Load pretrained model ***")
-    torch_dtype = (
-        model_args.torch_dtype if model_args.torch_dtype in ["auto", None] else getattr(torch, model_args.torch_dtype)
-    )
-    quantization_config = get_quantization_config(model_args)
+    # use float16 (V100 does not support bfloat16)
+    torch_dtype = torch.float16 if training_args.fp16 else torch.float32
 
     model_kwargs = dict(
         revision=model_args.model_revision,
         trust_remote_code=model_args.trust_remote_code,
         use_flash_attention_2=model_args.use_flash_attention_2,
         torch_dtype=torch_dtype,
-        use_cache=False if training_args.gradient_checkpointing else True,
-        device_map=get_kbit_device_map() if quantization_config is not None else None,
-        quantization_config=quantization_config,
+        use_cache=False if training_args.gradient_checkpointing else True
     )
 
-    model = model_args.model_name_or_path
-    # For ChatML we need to add special tokens and resize the embedding layer
-    if "<|im_start|>" in tokenizer.chat_template and "gemma-tokenizer-chatml" not in tokenizer.name_or_path:
-        model = AutoModelForCausalLM.from_pretrained(model_args.model_name_or_path, **model_kwargs)
-        model, tokenizer = setup_chat_format(model, tokenizer)
-        model_kwargs = None
+    model = AutoModelForCausalLM.from_pretrained(
+        model_args.model_name_or_path,
+        **model_kwargs,
+    )
+    model.resize_token_embeddings(len(tokenizer)) # original model has 32000 tokens, now we have 34314 tokens
+    # TODO: use pre-trained features to initialize the visual and action embeddings
 
-    #####################
-    # Apply chat template
-    #####################
+
+    #######################
+    # Pre-process the dataset
+    #######################
+
+    wanted_keys = ['text', 'input_visual', 'input_action', 'output_visual', 'output_action']
+    column_names_to_remove = [col for col in raw_datasets.column_names if col not in wanted_keys]
+
+    def proprocess_function_debug(examples):
+        '''
+        Now we use a text-only dataset for debugging propose, i.e., we only have "text" in the dataset
+        then set "input visual" to 6*256 random visual tokens, "input action" to 6*7 random action tokens,
+        "output visual" to 256 random visual tokens, "output action" to 7 random action tokens
+        '''
+        # set "input visual" to 6*256 random visual tokens
+        examples["input_visual"] = torch.randint(0, 2048, (6, 256))
+        # set "input action" to 6*7 random action tokens
+        examples["input_action"] = torch.randint(0, 256, (6, 7))
+        # set "output visual" to 256 random visual tokens
+        examples["output_visual"] = torch.randint(0, 2048, (256,))
+        # set "output action" to 7 random action tokens
+        examples["output_action"] = torch.randint(0, 256, (7,))
+
+        return examples
+
     raw_datasets = raw_datasets.map(
-        apply_chat_template,
-        fn_kwargs={
-            "tokenizer": tokenizer,
-            "task": "sft",
-            "auto_insert_empty_system_msg": data_args.auto_insert_empty_system_msg,
-        },
+        proprocess_function_debug,
         num_proc=data_args.preprocessing_num_workers,
-        remove_columns=column_names,
-        desc="Applying chat template",
+        remove_columns=column_names_to_remove,
+        desc="Preprocessing dataset",
     )
 
+    def formatting_func(example): 
+        '''
+        Format the example into a sequence format
+        examples is a dict with the following keys:
+        - text: text prompt of the manipulation task, in natural language
+        - input_visual: input visual tokens for the manipulation task, in token format, e.g., <v1> <v2> <v3>
+        - input_action: input action tokens for the manipulation task, in token format
+        - output_visual: output visual tokens for the manipulation task, in token format
+        - output_action: output action tokens for the manipulation task, in token format
+        sequence format: bos + bot_i + text + eot_i +
+                        bov_i + input_visual + eov_i +
+                        boa_i + input_action + eoa_i + 
+                        bov_o + output_visual + eov_o +
+                        boa_o + output_action + eoa_o + eos (padding will be automatically added later by the trainer)
+        '''
+        out_seq = tokenizer.bos_token + \
+            tokenizer.special_tokens_map['VLA_special_tokens']['<bot_i>'] + example['text'] + tokenizer.special_tokens_map['VLA_special_tokens']['<eot_i>'] + \
+            tokenizer.special_tokens_map['VLA_special_tokens']['<bov_i>'] + ' '.join([visual_tokens_to_add[i] for i in example['input_visual']]) + tokenizer.special_tokens_map['VLA_special_tokens']['<eov_i>'] + \
+            tokenizer.special_tokens_map['VLA_special_tokens']['<boa_i>'] + ' '.join([action_tokens_to_add[i] for i in example['input_action']]) + tokenizer.special_tokens_map['VLA_special_tokens']['<eoa_i>'] + \
+            tokenizer.special_tokens_map['VLA_special_tokens']['<bov_o>'] + ' '.join([visual_tokens_to_add[i] for i in example['output_visual']]) + tokenizer.special_tokens_map['VLA_special_tokens']['<eov_o>'] + \
+            tokenizer.special_tokens_map['VLA_special_tokens']['<boa_o>'] + ' '.join([action_tokens_to_add[i] for i in example['output_action']]) + tokenizer.special_tokens_map['VLA_special_tokens']['<eoa_o>'] + \
+            tokenizer.eos_token
+
+        return out_seq
+        
     # only take 1000 samples for debug
     raw_datasets = raw_datasets.filter(lambda x, i: i < 2000, with_indices=True)
 
-    ##########################
-    # Decontaminate benchmarks
-    ##########################
-    num_raw_train_samples = len(raw_datasets["train"])
-    raw_datasets = raw_datasets.filter(decontaminate_humaneval, batched=True, batch_size=10_000, num_proc=1)
-    num_filtered_train_samples = num_raw_train_samples - len(raw_datasets["train"])
-    logger.info(
-        f"Decontaminated {num_filtered_train_samples} ({num_filtered_train_samples/num_raw_train_samples * 100:.2f}%) samples from the training set."
-    )
-
     train_dataset = raw_datasets["train"]
-    eval_dataset = raw_datasets["test"] # only key here for both datasets is "text"
+    eval_dataset = raw_datasets["test"]
 
     with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
         for index in random.sample(range(len(raw_datasets["train"])), 3):
@@ -171,12 +212,12 @@ def main():
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
-        # dataset_text_field="text",
-        max_seq_length=training_args.max_seq_length,
         tokenizer=tokenizer,
-        # packing=True,
-        # peft_config=get_peft_config(model_args),
+        formatting_func=formatting_func,
+        max_seq_length=training_args.max_seq_length,
         dataset_kwargs=training_args.dataset_kwargs,
+        # dataset_text_field="text",
+        # packing=True,
     )
 
     ###############
