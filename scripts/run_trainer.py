@@ -40,7 +40,7 @@ from alignment import (
     get_quantization_config,
     get_tokenizer,
 )
-from trl import SFTTrainer, setup_chat_format, DataCollatorForCompletionOnlyLM
+from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 
 
 logger = logging.getLogger(__name__)
@@ -269,27 +269,27 @@ def main():
     logger.info(f"Model saved to {training_args.output_dir}")
 
     # Save everything else on main process
-    kwargs = {
-        "finetuned_from": model_args.model_name_or_path,
-        "dataset": list(data_args.dataset_mixer.keys()),
-        "dataset_tags": list(data_args.dataset_mixer.keys()),
-        "tags": ["alignment-handbook"],
-    }
-    if trainer.accelerator.is_main_process:
-        trainer.create_model_card(**kwargs)
-        # Restore k,v cache for fast inference
-        trainer.model.config.use_cache = True
-        trainer.model.config.save_pretrained(training_args.output_dir)
+    # kwargs = {
+    #     "finetuned_from": model_args.model_name_or_path,
+    #     "dataset": list(data_args.dataset_mixer.keys()),
+    #     "dataset_tags": list(data_args.dataset_mixer.keys()),
+    #     "tags": ["alignment-handbook"],
+    # }
+    # if trainer.accelerator.is_main_process:
+    #     trainer.create_model_card(**kwargs)
+    #     # Restore k,v cache for fast inference
+    #     trainer.model.config.use_cache = True
+    #     trainer.model.config.save_pretrained(training_args.output_dir)
 
     ##########
     # Evaluate
     ##########
-    # if training_args.do_eval:
-    #     logger.info("*** Evaluate ***")
-    #     metrics = trainer.evaluate()
-    #     metrics["eval_samples"] = len(eval_dataset)
-    #     trainer.log_metrics("eval", metrics)
-    #     trainer.save_metrics("eval", metrics)
+    if training_args.do_eval:
+        logger.info("*** Evaluate ***")
+        metrics = trainer.evaluate()
+        metrics["eval_samples"] = len(eval_dataset)
+        trainer.log_metrics("eval", metrics)
+        trainer.save_metrics("eval", metrics)
 
     # if training_args.push_to_hub is True:
     #     logger.info("Pushing to hub...")
