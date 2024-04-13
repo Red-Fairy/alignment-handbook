@@ -1,14 +1,13 @@
 from transformers import AutoTokenizer
 import torch
 
-tokenizer = AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
+# tokenizer = AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
+tokenizer = AutoTokenizer.from_pretrained('microsoft/phi-2')
+print(len(tokenizer))
 
 ids = torch.Tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 tokens = tokenizer.convert_ids_to_tokens(ids)
 print(' '.join(tokens))
-
-
-print(len(tokenizer))
 
 print(tokenizer.unk_token, tokenizer.unk_token_id,
       tokenizer.pad_token, tokenizer.pad_token_id,

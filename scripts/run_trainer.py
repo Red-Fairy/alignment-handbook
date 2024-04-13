@@ -24,7 +24,7 @@ import sys
 import datasets
 import torch
 import transformers
-from transformers import AutoModelForCausalLM, set_seed, MistralModel
+from transformers import AutoModelForCausalLM, set_seed, MistralModel, PhiModel
 
 from alignment import (
     DataArguments,
@@ -109,10 +109,11 @@ def main():
     #     including <bot_i>, <eot_i>, <bov_i>, <eov_i>, <boa_i>, <eoa_i>, <bov_o>, <eov_o>, <boa_o>, <eoa_o>
     # In total 2048 + 256 + 10 = 2314 tokens to add
     ################
-    tokenizer = transformers.AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
+    tokenizer = transformers.AutoTokenizer.from_pretrained(model_args.model_name_or_path)
+    vocab_size = len(tokenizer)
     # add eos token when when calling tokenizer
-    visual_tokens_to_add = ['<v' + str(i) + '>' for i in range(0, 2048)]
-    action_tokens_to_add = ['<a' + str(i) + '>' for i in range(0, 256)]
+    visual_tokens_to_add = ['<v' + str(i) + '>' for i in range(0, data_args.num_visual_tokens)]
+    action_tokens_to_add = ['<a' + str(i) + '>' for i in range(0, data_args.num_action_tokens)]
     num_added_visual_tokens = tokenizer.add_special_tokens({'additional_special_tokens': visual_tokens_to_add})
     num_added_action_tokens = tokenizer.add_special_tokens({'additional_special_tokens': action_tokens_to_add})
     special_tokens = ['<bot_i>', '<eot_i>', '<bov_i>', '<eov_i>', '<boa_i>', '<eoa_i>', 
@@ -135,13 +136,13 @@ def main():
         '''
         examples['text'] = examples['messages'][0]['content'][:100] # for debug propose, only use the first message
         # set "input visual" to 6*256 random visual tokens
-        examples["input_visual"] = torch.randint(0, 2048, (6*256,)) + 32000
+        examples["input_visual"] = torch.randint(0, data_args.num_visual_tokens, (6,)) + vocab_size
         # set "input action" to 6*7 random action tokens
-        examples["input_action"] = torch.randint(0, 256, (6*7,)) + 32000 + 2048
+        examples["input_action"] = torch.randint(0, data_args.num_action_tokens, (6,)) + vocab_size + data_args.num_visual_tokens
         # set "output visual" to 256 random visual tokens
-        examples["output_visual"] = torch.randint(0, 2048, (256,)) + 32000
+        examples["output_visual"] = torch.randint(0, data_args.num_visual_tokens, (6,)) + vocab_size
         # set "output action" to 7 random action tokens
-        examples["output_action"] = torch.randint(0, 256, (7,)) + 32000 + 2048
+        examples["output_action"] = torch.randint(0, data_args.num_action_tokens, (7,)) + vocab_size + data_args.num_visual_tokens
 
         return examples
 
@@ -184,7 +185,7 @@ def main():
                     '<boa_i>' + ''.join(tokenizer.convert_ids_to_tokens(example['input_action'])) + '<eoa_i>' + \
                     '<bov_o>' + ''.join(tokenizer.convert_ids_to_tokens(example['output_visual'])) + '<eov_o>' + \
                     '<boa_o>' + ''.join(tokenizer.convert_ids_to_tokens(example['output_action'])) + '<eoa_o>' + \
-                    '</s>'
+                    tokenizer.eos_token
 
         return example
 
