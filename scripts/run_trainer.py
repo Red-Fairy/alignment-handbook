@@ -26,25 +26,11 @@ import torch
 import transformers
 from transformers import AutoModelForCausalLM, set_seed, MistralModel, PhiModel
 
-from alignment import (
-    DataArguments,
-    H4ArgumentParser,
-    ModelArguments,
-    SFTConfig,
-    apply_chat_template,
-    decontaminate_humaneval,
-    get_checkpoint,
-    get_datasets,
-    get_kbit_device_map,
-    get_peft_config,
-    get_quantization_config,
-    get_tokenizer,
-)
+from src.alignment import DataArguments, H4ArgumentParser, ModelArguments, SFTConfig, get_checkpoint, get_datasets
+
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 
-
 logger = logging.getLogger(__name__)
-
 
 def main():
     parser = H4ArgumentParser((ModelArguments, DataArguments, SFTConfig))
