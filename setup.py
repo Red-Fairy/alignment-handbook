@@ -131,7 +131,7 @@ setup(
     packages=find_packages("src"),
     zip_safe=False,
     extras_require=extras,
-    python_requires=">=3.10.9",
+    python_requires=">=3.8",
     install_requires=install_requires,
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -141,7 +141,7 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.8",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
 )
