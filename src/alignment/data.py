@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 
 from datasets import DatasetDict, concatenate_datasets, load_dataset, load_from_disk
 from datasets.builder import DatasetGenerationError
@@ -94,7 +94,7 @@ def apply_chat_template(
 
 
 def get_datasets(
-    data_config: DataArguments | dict,
+    data_config: Union[DataArguments, dict],
     splits: Optional[List[str]] = None,
     configs: Optional[List[str]] = None,
     columns_to_keep: Optional[List[str]] = None,
