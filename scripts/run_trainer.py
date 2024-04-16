@@ -120,15 +120,15 @@ def main():
         then set "input visual" to 6*256 random visual tokens, "input action" to 6*7 random action tokens,
         "output visual" to 256 random visual tokens, "output action" to 7 random action tokens
         '''
-        examples['text'] = examples['messages'][0]['content'][:100] # for debug propose, only use the first message
+        examples['text'] = examples['messages'][0]['content'][:200] # for debug propose, only use the first message
         # set "input visual" to 6*256 random visual tokens
-        examples["input_visual"] = torch.randint(0, data_args.num_visual_tokens, (6,)) + vocab_size
+        examples["input_visual"] = torch.randint(0, data_args.num_visual_tokens, (256,)) + vocab_size
         # set "input action" to 6*7 random action tokens
-        examples["input_action"] = torch.randint(0, data_args.num_action_tokens, (6,)) + vocab_size + data_args.num_visual_tokens
+        examples["input_action"] = torch.randint(0, data_args.num_action_tokens, (7,)) + vocab_size + data_args.num_visual_tokens
         # set "output visual" to 256 random visual tokens
-        examples["output_visual"] = torch.randint(0, data_args.num_visual_tokens, (6,)) + vocab_size
+        examples["output_visual"] = torch.randint(0, data_args.num_visual_tokens, (6*256,)) + vocab_size
         # set "output action" to 7 random action tokens
-        examples["output_action"] = torch.randint(0, data_args.num_action_tokens, (7,)) + vocab_size + data_args.num_visual_tokens
+        examples["output_action"] = torch.randint(0, data_args.num_action_tokens, (6*7,)) + vocab_size + data_args.num_visual_tokens
 
         return examples
 
