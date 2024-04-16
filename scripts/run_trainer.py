@@ -26,7 +26,7 @@ import torch
 import transformers
 from transformers import AutoModelForCausalLM, set_seed, MistralModel, PhiModel
 
-from src.alignment import DataArguments, H4ArgumentParser, ModelArguments, SFTConfig, get_checkpoint, get_datasets
+from alignment import DataArguments, H4ArgumentParser, ModelArguments, SFTConfig, get_checkpoint, get_datasets
 
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 
@@ -106,11 +106,12 @@ def main():
                             '<bov_o>', '<eov_o>', '<boa_o>', '<eoa_o>']
     num_added_special_tokens = tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    # For SFT training, padding should be on the right
+    tokenizer.padding_side = "right"
 
     #######################
     # Pre-process the dataset
     #######################
-
     wanted_keys = ['text', 'input_visual', 'input_action', 'output_visual', 'output_action']
     column_names_to_remove = [col for col in raw_datasets['train'].column_names if col not in wanted_keys]
 
