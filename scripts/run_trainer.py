@@ -226,7 +226,6 @@ def main():
         eval_dataset=eval_dataset,
         tokenizer=tokenizer,
         dataset_text_field="text",
-        # formatting_func=formatting_func,
         data_collator=data_collator,
         max_seq_length=training_args.max_seq_length,
         dataset_kwargs=training_args.dataset_kwargs,
@@ -256,17 +255,17 @@ def main():
     logger.info(f"Model saved to {training_args.output_dir}")
 
     # Save everything else on main process
-    # kwargs = {
-    #     "finetuned_from": model_args.model_name_or_path,
-    #     "dataset": list(data_args.dataset_mixer.keys()),
-    #     "dataset_tags": list(data_args.dataset_mixer.keys()),
-    #     "tags": ["alignment-handbook"],
-    # }
-    # if trainer.accelerator.is_main_process:
-    #     trainer.create_model_card(**kwargs)
-    #     # Restore k,v cache for fast inference
-    #     trainer.model.config.use_cache = True
-    #     trainer.model.config.save_pretrained(training_args.output_dir)
+    kwargs = {
+        "finetuned_from": model_args.model_name_or_path,
+        "dataset": list(data_args.dataset_mixer.keys()),
+        "dataset_tags": list(data_args.dataset_mixer.keys()),
+        "tags": ["alignment-handbook"],
+    }
+    if trainer.accelerator.is_main_process:
+        trainer.create_model_card(**kwargs)
+        # Restore k,v cache for fast inference
+        trainer.model.config.use_cache = True
+        trainer.model.config.save_pretrained(training_args.output_dir)
 
     ##########
     # Evaluate
@@ -277,10 +276,6 @@ def main():
         metrics["eval_samples"] = len(eval_dataset)
         trainer.log_metrics("eval", metrics)
         trainer.save_metrics("eval", metrics)
-
-    # if training_args.push_to_hub is True:
-    #     logger.info("Pushing to hub...")
-    #     trainer.push_to_hub(**kwargs)
 
     logger.info("*** Training complete ***")
 
