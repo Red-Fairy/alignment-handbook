@@ -187,9 +187,9 @@ def main():
         desc="Preprocessing testing dataset",
     )
 
-    with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
-        for index in random.sample(range(len(train_dataset)), 1):
-            logger.info(f"Sample {index} of the processed training set:\n\n{train_dataset[index]}")
+    # with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
+    #     for index in random.sample(range(len(train_dataset)), 1):
+    #         logger.info(f"Sample {index} of the processed training set:\n\n{train_dataset[index]}")
     
     # input always ends by <eoa_i>, use <eoa_i> as the response template
     response_template_id = tokenizer.convert_tokens_to_ids(['<eoa_i>'])
