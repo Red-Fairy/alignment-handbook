@@ -48,7 +48,6 @@ class H4ArgumentParser(HfArgumentParser):
         outputs = []
         # strip other args list into dict of key-value pairs
         other_args = {arg.split("=")[0].strip("-"): arg.split("=")[1] for arg in other_args}
-        other_args = {k: os.abspath(v) if v.endswith(".yaml") else v for k, v in other_args.items()}
         used_args = {}
 
         # overwrite the default/loaded value with the value provided to the command line
@@ -89,6 +88,9 @@ class H4ArgumentParser(HfArgumentParser):
         return outputs
 
     def parse(self) -> Union[DataClassType, Tuple[DataClassType]]:
+        # only parse the commands after the script name
+        script_name = filter(lambda x: x.endswith(".py"), sys.argv)
+        sys.argv = list(script_name) + sys.argv[1:]
         if len(sys.argv) == 2 and sys.argv[1].endswith(".yaml"):
             # If we pass only one argument to the script and it's the path to a YAML file,
             # let's parse it to get our arguments.
