@@ -14,6 +14,7 @@ dataset_splits:
 preprocessing_num_workers: 12
 
 # SFT trainer config
+deepspeed: recipes/VLA/mistral/ds_zero3.json
 bf16: false
 fp16: true
 do_eval: true
