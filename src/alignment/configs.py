@@ -48,6 +48,7 @@ class H4ArgumentParser(HfArgumentParser):
         outputs = []
         # strip other args list into dict of key-value pairs
         other_args = {arg.split("=")[0].strip("-"): arg.split("=")[1] for arg in other_args}
+        other_args = {k: os.abspath(v) if v.endswith(".yaml") else v for k, v in other_args.items()}
         used_args = {}
 
         # overwrite the default/loaded value with the value provided to the command line
@@ -93,10 +94,12 @@ class H4ArgumentParser(HfArgumentParser):
             # let's parse it to get our arguments.
             output = self.parse_yaml_file(os.path.abspath(sys.argv[1]))
         # parse command line args and yaml file
-        elif len(sys.argv) > 2 and sys.argv[2].endswith(".yaml"):
+        elif len(sys.argv) == 3 and sys.argv[2].endswith(".yaml"):
             output = self.parse_yaml_file(os.path.abspath(sys.argv[2]))
-        elif len(sys.argv) > 2 and sys.argv[1].endswith(".yaml"):
-            output = self.parse_yaml_and_args(os.path.abspath(sys.argv[1]), sys.argv[2:])
+        elif len(sys.argv) > 3 and sys.argv[2].endswith(".yaml"):
+            output = self.parse_yaml_and_args(os.path.abspath(sys.argv[2]), sys.argv[3:])
+        # elif len(sys.argv) > 2 and sys.argv[1].endswith(".yaml"):
+        #     output = self.parse_yaml_and_args(os.path.abspath(sys.argv[1]), sys.argv[2:])
         # parse command line args only
         else:
             output = self.parse_args_into_dataclasses()
