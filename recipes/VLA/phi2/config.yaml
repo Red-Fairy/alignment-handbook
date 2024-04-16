@@ -38,7 +38,7 @@ remove_unused_columns: true
 report_to:
 - tensorboard
 save_strategy: "steps"
-save_steps: 100
+save_steps: 20
 save_total_limit: 1
 seed: 42
 warmup_ratio: 0.1
