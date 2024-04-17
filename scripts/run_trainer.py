@@ -29,10 +29,21 @@ from transformers import AutoModelForCausalLM, set_seed, MistralModel, PhiModel
 from alignment import DataArguments, H4ArgumentParser, ModelArguments, SFTConfig, get_checkpoint, get_datasets
 
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+import os
 
 logger = logging.getLogger(__name__)
 
 def main():
+    try:
+        print('MASTER_ADDR', os.environ['MASTER_ADDR'])
+        print('MASTER_PORT', os.environ['MASTER_PORT'])
+        print('NODE_RANK', os.environ['NODE_RANK'])
+        print('LOCAL_RANK', os.environ['LOCAL_RANK'])
+        print('RANK', os.environ['RANK'])
+        print('WORLD_SIZE', os.environ['WORLD_SIZE'])
+    except:
+        pass
+
     parser = H4ArgumentParser((ModelArguments, DataArguments, SFTConfig))
     model_args, data_args, training_args = parser.parse()
 
