@@ -202,37 +202,13 @@ class DataArguments:
     Arguments pertaining to what data we are going to input our model for training and eval.
     """
 
-    chat_template: Optional[str] = field(default=None, metadata={"help": "The chat template to use."})
-    dataset_mixer: Optional[Dict[str, float]] = field(
+    data_root: Optional[str] = field(
         default=None,
-        metadata={"help": ("Datasets and their proportions to be used for training ift/rl.")},
+        metadata={"help": "The root directory of the data."}
     )
-    text_column: Optional[str] = field(
-        default="text",
-        metadata={"help": "The column name to use for the text in the dataset (only used for continued pretraining)."},
-    )
-    dataset_splits: Optional[List[str]] = field(
-        default_factory=lambda: ["train", "test"],
-        metadata={"help": ("List of train test splits to use in the dataset")},
-    )
-    dataset_configs: Optional[List[str]] = field(
-        default=None,
-        metadata={"help": "List of dataset config names. If given must be the same length as 'dataset_mixer' keys."},
-    )
-    preprocessing_num_workers: Optional[int] = field(
-        default=None,
-        metadata={"help": "The number of processes to use for the preprocessing."},
-    )
-    truncation_side: Optional[str] = field(
-        default=None, metadata={"help": "Truncation side to use for the tokenizer."}
-    )
-    auto_insert_empty_system_msg: bool = field(
-        default=True,
-        metadata={
-            "help": (
-                "Whether to automatically insert an empty system message as the first message if `system` is mentioned in the chat template."
-            )
-        },
+    padding_side: Optional[str] = field(
+        default='right', metadata={"help": "Truncation side to use for the tokenizer."},
+        choices=["right", "left"]
     )
     num_visual_tokens: Optional[int] = field(
         default=2048,
@@ -241,6 +217,14 @@ class DataArguments:
     num_action_tokens: Optional[int] = field(
         default=256,
         metadata={"help": ("The number of action tokens to use for the model.")},
+    )
+    num_input_frames: Optional[int] = field(
+        default=6,
+        metadata={"help": ("The number of input frames to use for the model.")},
+    )
+    num_output_frames: Optional[int] = field(
+        default=1,
+        metadata={"help": ("The number of output frames to use for the model.")},
     )
 
 @dataclass

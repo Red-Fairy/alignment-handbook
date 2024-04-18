@@ -27,7 +27,6 @@ import transformers
 from transformers import AutoModelForCausalLM, set_seed, MistralModel, PhiModel
 
 from alignment import DataArguments, H4ArgumentParser, ModelArguments, SFTConfig, get_checkpoint, get_datasets
-from alignment import get_VLA_dataset
 
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 import os
@@ -78,20 +77,29 @@ def main():
     ###############
     # Load datasets
     ###############
+    raw_datasets = get_datasets(
+        data_args,
+        splits=data_args.dataset_splits,
+        configs=data_args.dataset_configs,
+        columns_to_keep=["messages", "chosen", "rejected", "prompt", "completion", "label"],
+    )
+    train_dataset = raw_datasets["train"]
+    eval_dataset = raw_datasets["test"]
 
-    train_dataset = get_VLA_dataset(data_args, split='train')
-    eval_dataset = get_VLA_dataset(data_args, split='test')
+    logger.info(
+        f"Training on the following datasets and their proportions: {[split + ' : ' + str(dset.num_rows) for split, dset in raw_datasets.items()]}"
+    )
 
     # only take a little samples for debug
-    # train_dataset = train_dataset.select(range(2000))
-    # eval_dataset = eval_dataset.select(range(500))
+    train_dataset = train_dataset.select(range(1000))
+    eval_dataset = eval_dataset.select(range(500))
 
     ################
     # Load tokenizer
-    # The visual modality has 2048 (16384) tokens, and the action modality has 256 tokens, add them to the tokenizer
+    # The visual modality has 2048 tokens, and the action modality has 256 tokens, add them to the tokenizer
     # Add special tokens for the visual and action modalities, 
     #     including <bot_i>, <eot_i>, <bov_i>, <eov_i>, <boa_i>, <eoa_i>, <bov_o>, <eov_o>, <boa_o>, <eoa_o>
-    # In total 2048 (16384) + 256 + 10 = 2314 (16650) tokens
+    # In total 2048 + 256 + 10 = 2314 tokens to add
     ################
     tokenizer = transformers.AutoTokenizer.from_pretrained(model_args.model_name_or_path)
     vocab_size = len(tokenizer)
@@ -105,14 +113,48 @@ def main():
     num_added_special_tokens = tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     # For SFT training, padding should be on the right
-    tokenizer.padding_side = data_args.padding_side
+    tokenizer.padding_side = "right"
 
     #######################
     # Pre-process the dataset
     #######################
-    # with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
-    #     for index in random.sample(range(len(train_dataset)), 1):
-    #         logger.info(f"Sample {index} of the processed training set:\n\n{train_dataset[index]}")
+    wanted_keys = ['text', 'input_visual', 'input_action', 'output_visual', 'output_action']
+    column_names_to_remove = [col for col in raw_datasets['train'].column_names if col not in wanted_keys]
+
+    def proprocess_function_debug(examples):
+        '''
+        Now we use a text-only dataset for debugging propose, i.e., we only have "text" in the dataset
+        then set "input visual" to 6*256 random visual tokens, "input action" to 6*7 random action tokens,
+        "output visual" to 256 random visual tokens, "output action" to 7 random action tokens
+        '''
+        examples['text'] = examples['messages'][0]['content'][:200] # for debug propose, only use the first message
+        # set "input visual" to 6*256 random visual tokens
+        examples["input_visual"] = torch.randint(0, data_args.num_visual_tokens, (256,)) + vocab_size
+        # set "input action" to 6*7 random action tokens
+        examples["input_action"] = torch.randint(0, data_args.num_action_tokens, (7,)) + vocab_size + data_args.num_visual_tokens
+        # set "output visual" to 256 random visual tokens
+        examples["output_visual"] = torch.randint(0, data_args.num_visual_tokens, (6*256,)) + vocab_size
+        # set "output action" to 7 random action tokens
+        examples["output_action"] = torch.randint(0, data_args.num_action_tokens, (6*7,)) + vocab_size + data_args.num_visual_tokens
+
+        return examples
+
+    train_dataset = train_dataset.map(
+        proprocess_function_debug,
+        num_proc=data_args.preprocessing_num_workers,
+        remove_columns=column_names_to_remove,
+        desc="Preprocessing training dataset for debug",
+    )
+    eval_dataset = eval_dataset.map(
+        proprocess_function_debug,
+        num_proc=data_args.preprocessing_num_workers,
+        remove_columns=column_names_to_remove,
+        desc="Preprocessing testing dataset for debug",
+    )
+
+    with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
+        for index in random.sample(range(len(train_dataset)), 1):
+            logger.info(f"Sample {index} of the processed training set:\n\n{train_dataset[index]}")
 
     def preprocess_func(example): 
         '''
@@ -130,7 +172,7 @@ def main():
                         bov_o + output_visual + eov_o +
                         boa_o + output_action + eoa_o + eos (padding will be automatically added later by the trainer)
         '''
-        
+        # TODO: if some texts are too long, need to truncate them, depend on the dataset side
         example['text'] = '<bot_i>' + example['text'] + '<eot_i>' + \
                     '<bov_i>' + ''.join(tokenizer.convert_ids_to_tokens(example['input_visual'])) + '<eov_i>' + \
                     '<boa_i>' + ''.join(tokenizer.convert_ids_to_tokens(example['input_action'])) + '<eoa_i>' + \
@@ -142,16 +184,18 @@ def main():
 
     train_dataset = train_dataset.map(
         preprocess_func,
+        num_proc=data_args.preprocessing_num_workers,
         desc="Preprocessing training dataset",
     )
     eval_dataset = eval_dataset.map(
         preprocess_func,
+        num_proc=data_args.preprocessing_num_workers,
         desc="Preprocessing testing dataset",
     )
 
-    with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
-        for index in random.sample(range(len(train_dataset)), 1):
-            logger.info(f"Sample {index} of the processed training set:\n\n{train_dataset[index]}")
+    # with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
+    #     for index in random.sample(range(len(train_dataset)), 1):
+    #         logger.info(f"Sample {index} of the processed training set:\n\n{train_dataset[index]}")
     
     # input always ends by <eoa_i>, use <eoa_i> as the response template
     response_template_id = tokenizer.convert_tokens_to_ids(['<eoa_i>'])
