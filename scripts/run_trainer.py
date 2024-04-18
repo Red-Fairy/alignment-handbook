@@ -75,17 +75,6 @@ def main():
     logger.info(f"Data parameters {data_args}")
     logger.info(f"Training/evaluation parameters {training_args}")
 
-    ###############
-    # Load datasets
-    ###############
-
-    train_dataset = get_VLA_dataset(data_args, split='train')
-    eval_dataset = get_VLA_dataset(data_args, split='test')
-
-    # only take a little samples for debug
-    # train_dataset = train_dataset.select(range(2000))
-    # eval_dataset = eval_dataset.select(range(500))
-
     ################
     # Load tokenizer
     # The visual modality has 2048 (16384) tokens, and the action modality has 256 tokens, add them to the tokenizer
@@ -108,11 +97,20 @@ def main():
     tokenizer.padding_side = data_args.padding_side
 
     #######################
-    # Pre-process the dataset
+    # Load and pre-process the dataset
     #######################
-    # with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
-    #     for index in random.sample(range(len(train_dataset)), 1):
-    #         logger.info(f"Sample {index} of the processed training set:\n\n{train_dataset[index]}")
+
+    train_dataset = get_VLA_dataset(data_args, vocab_size, split='train')
+    eval_dataset = get_VLA_dataset(data_args, vocab_size, split='test')
+
+    # only take a little samples for debug
+    if training_args.debug:
+        train_dataset = train_dataset.select(range(2000))
+        eval_dataset = eval_dataset.select(range(100))
+    
+    with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
+        index = random.randint(0, len(train_dataset))
+        logger.info(f"Sample {index} from the training set:\n\n{train_dataset[index]}")
 
     def preprocess_func(example): 
         '''
@@ -142,16 +140,20 @@ def main():
 
     train_dataset = train_dataset.map(
         preprocess_func,
+        num_proc=data_args.preprocessing_num_workers,
         desc="Preprocessing training dataset",
     )
     eval_dataset = eval_dataset.map(
         preprocess_func,
+        num_proc=data_args.preprocessing_num_workers,
         desc="Preprocessing testing dataset",
     )
 
     with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
-        for index in random.sample(range(len(train_dataset)), 1):
-            logger.info(f"Sample {index} of the processed training set:\n\n{train_dataset[index]}")
+        index = random.randint(0, len(train_dataset))
+        logger.info(f"Sample {index} from the training set:\n\n{train_dataset[index]}")
+    
+    exit()
     
     # input always ends by <eoa_i>, use <eoa_i> as the response template
     response_template_id = tokenizer.convert_tokens_to_ids(['<eoa_i>'])

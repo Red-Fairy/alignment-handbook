@@ -201,14 +201,19 @@ class DataArguments:
     """
     Arguments pertaining to what data we are going to input our model for training and eval.
     """
-
+    preprocessing_num_workers: Optional[int] = field(
+        default=None,
+        metadata={"help": ("The number of processes to use for data preprocessing.")},
+    )
     data_root: Optional[str] = field(
         default=None,
         metadata={"help": "The root directory of the data."}
     )
     padding_side: Optional[str] = field(
-        default='right', metadata={"help": "Truncation side to use for the tokenizer."},
-        choices=["right", "left"]
+        default='right', metadata={
+            "help": "Truncation side to use for the tokenizer.",
+            "choices": ["right", "left"],
+        }
     )
     num_visual_tokens: Optional[int] = field(
         default=2048,

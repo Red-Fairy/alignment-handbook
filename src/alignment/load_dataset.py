@@ -24,26 +24,24 @@ def gen(shards, num_input, num_output, vocab_size, num_visual_tokens, num_action
                 if num_frames < num_input + num_output:
                     continue
                 start_frame = random.randint(0, num_frames - num_input - num_output)
-                ret['input_visual'] = np.array(instance_info['Visual'][start_frame:start_frame+num_input], dtype=np.int32) + vocab_size
-                ret['output_visual'] = np.array(instance_info['Visual'][start_frame+num_input:start_frame+num_input+num_output], dtype=np.int32) + vocab_size
-                ret['input_action'] = np.array(instance_info['Action'][start_frame:start_frame+num_input], dtype=np.int32) + num_visual_tokens + vocab_size
-                ret['output_action'] = np.array(instance_info['Action'][start_frame+num_input:start_frame+num_input+num_output], dtype=np.int32) + num_visual_tokens + vocab_size
+                ret['input_visual'] = np.array(instance_info['Visual'][start_frame:start_frame+num_input], dtype=np.int32).flatten() + vocab_size
+                ret['output_visual'] = np.array(instance_info['Visual'][start_frame+num_input:start_frame+num_input+num_output], dtype=np.int32).flatten() + vocab_size
+                ret['input_action'] = np.array(instance_info['Action'][start_frame:start_frame+num_input], dtype=np.int32).flatten() + num_visual_tokens + vocab_size
+                ret['output_action'] = np.array(instance_info['Action'][start_frame+num_input:start_frame+num_input+num_output], dtype=np.int32).flatten() + num_visual_tokens + vocab_size
                 ret['text'] = instance_info['Text']
                 yield ret
 
-def get_VLA_dataset(args, split='train'):
+def get_VLA_dataset(args, vocab_size, split='train'):
     root = args.data_root
     file_format = 'data_bridge2_processed_{}.jsonl'
     shards = [os.path.join(root, split, file_format.format(i)) for i in range(len(os.listdir(root)))]
-    ds = IterableDataset.from_generator(gen, gen_kwargs={"shards": shards, "vocab_size": args.vocab_size, 
+    ds = Dataset.from_generator(gen, gen_kwargs={"shards": shards, "vocab_size": vocab_size, 
                                                          "num_visual_tokens": args.num_visual_tokens, "num_action_tokens": args.num_action_tokens,
                                                         "num_input": args.num_input_frames, "num_output": args.num_output_frames})
     return ds
 
-def get_VLA_dataloader(root, num_input=6, num_output=1):
-    file_format = 'data_bridge2_processed_{}.jsonl'
-    shards = [os.path.join(root, file_format.format(i)) for i in range(len(os.listdir(root)))]
-    ds = IterableDataset.from_generator(gen, gen_kwargs={"shards": shards, "num_input": num_input, "num_output": num_output})
+def get_VLA_dataloader(args, vocab_size, split='train'):
+    ds = get_VLA_dataset(args, vocab_size, split)
     dataloader = DataLoader(ds.with_format("torch"), num_workers=4)
     return dataloader
 

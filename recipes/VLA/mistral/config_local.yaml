@@ -5,13 +5,13 @@ torch_dtype: float16
 use_flash_attention_2: false
 
 # Data training arguments
-chat_template: "{% for message in messages %}\n{% if message['role'] == 'user' %}\n{{ '<|user|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'system' %}\n{{ '<|system|>\n' + message['content'] + eos_token }}\n{% elif message['role'] == 'assistant' %}\n{{ '<|assistant|>\n'  + message['content'] + eos_token }}\n{% endif %}\n{% if loop.last and add_generation_prompt %}\n{{ '<|assistant|>' }}\n{% endif %}\n{% endfor %}"
-dataset_mixer:
-  HuggingFaceH4/ultrachat_200k: 1.0
-dataset_splits:
-- train_sft
-- test_sft
 preprocessing_num_workers: 12
+data_root: /mnt/robotdata/bridge2_tokenized
+padding_side: right
+num_visual_tokens: 16384
+num_action_tokens: 256
+num_input_frames: 2
+num_output_frames: 1
 
 # SFT trainer config
 deepspeed: recipes/VLA/mistral/ds_zero3.json
@@ -38,7 +38,7 @@ remove_unused_columns: true
 report_to:
 - tensorboard
 save_strategy: "steps"
-save_steps: 10000
+save_steps: 20
 save_total_limit: 1
 seed: 42
 warmup_ratio: 0.1
