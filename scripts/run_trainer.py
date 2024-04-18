@@ -25,6 +25,7 @@ import datasets
 import torch
 import transformers
 from transformers import AutoModelForCausalLM, set_seed, MistralModel, PhiModel
+from transformers import TrainerCallback
 
 from alignment import DataArguments, H4ArgumentParser, ModelArguments, SFTConfig, get_checkpoint, get_datasets
 from alignment import get_VLA_dataset
@@ -141,19 +142,19 @@ def main():
     train_dataset = train_dataset.map(
         preprocess_func,
         num_proc=data_args.preprocessing_num_workers,
+        remove_columns=['input_visual', 'output_visual', 'input_action', 'output_action'],
         desc="Preprocessing training dataset",
     )
     eval_dataset = eval_dataset.map(
         preprocess_func,
         num_proc=data_args.preprocessing_num_workers,
+        remove_columns=['input_visual', 'output_visual', 'input_action', 'output_action'],
         desc="Preprocessing testing dataset",
     )
 
     with training_args.main_process_first(desc="Log a few random samples from the processed training set"):
         index = random.randint(0, len(train_dataset))
         logger.info(f"Sample {index} from the training set:\n\n{train_dataset[index]}")
-    
-    exit()
     
     # input always ends by <eoa_i>, use <eoa_i> as the response template
     response_template_id = tokenizer.convert_tokens_to_ids(['<eoa_i>'])
@@ -184,6 +185,7 @@ def main():
     ########################
     # Initialize the Trainer
     ########################
+
     trainer = SFTTrainer(
         model=model,
         args=training_args,
