@@ -46,6 +46,9 @@ def main():
     except:
         pass
 
+    from huggingface_hub import login
+    login(token='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')
+
     parser = H4ArgumentParser((ModelArguments, DataArguments, SFTConfig))
     model_args, data_args, training_args = parser.parse()
 
@@ -94,7 +97,6 @@ def main():
                             '<bov_o>', '<eov_o>', '<boa_o>', '<eoa_o>']
     num_added_special_tokens = tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-    # For SFT training, padding should be on the right
     tokenizer.padding_side = data_args.padding_side
 
     #######################

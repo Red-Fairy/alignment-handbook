@@ -8,7 +8,7 @@ use_flash_attention_2: false
 # Data training arguments
 preprocessing_num_workers: 12
 data_root: /mnt/robotdata/bridge2_tokenized
-padding_side: right
+padding_side: left
 num_visual_tokens: 16384
 num_action_tokens: 256
 num_input_frames: 6
