@@ -66,7 +66,7 @@ _deps = [
     "tensorboard",
     "torch==2.1.2",
     "transformers==4.40.0",  # Enable StarCoder2
-    "trl==0.7.10",
+    "trl==0.8.5",
     "jinja2>=3.0.0",
     "tqdm>=4.64.1",
 ]
