@@ -1,0 +1,47 @@
+# Model arguments
+model_name_or_path: data/Mistral-7B/checkpoint-680
+base_model_name: mistralai/Mistral-7B-v0.1
+model_revision: main
+torch_dtype: float16
+use_flash_attention_2: false
+
+# Data training arguments
+preprocessing_num_workers: 12
+data_root: /mnt/robotdata/bridge2_tokenized
+padding_side: right
+num_visual_tokens: 16384
+num_action_tokens: 256
+num_input_frames: 6
+num_output_frames: 1
+
+# SFT trainer config
+deepspeed: recipes/VLA/mistral/ds_zero3.json
+bf16: false
+fp16: true
+do_eval: true
+do_predict: true
+evaluation_strategy: "steps"
+eval_steps: 1
+gradient_checkpointing: true
+gradient_checkpointing_kwargs:
+  use_reentrant: False
+learning_rate: 2.0e-05
+log_level: info
+logging_steps: 5  
+logging_strategy: steps
+lr_scheduler_type: cosine
+max_seq_length: 2048
+max_steps: -1
+num_train_epochs: 10
+output_dir: data/Mistral-7B
+overwrite_output_dir: true
+per_device_eval_batch_size: 4
+per_device_train_batch_size: 4
+remove_unused_columns: true
+report_to:
+- tensorboard
+save_strategy: "steps"
+save_steps: 1000
+save_total_limit: 1
+seed: 42
+warmup_ratio: 0.1

@@ -114,6 +114,10 @@ class ModelArguments:
     """
     Arguments pertaining to which model/config/tokenizer we are going to fine-tune.
     """
+    base_model_name: str = field(
+        default="mistralai/Mistral-7B-v0.1",
+        metadata={"help": "The base model that the model is finetuned from."},
+    )
 
     base_model_revision: Optional[str] = field(
         default=None,
