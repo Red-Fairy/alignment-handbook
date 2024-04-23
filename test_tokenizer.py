@@ -1,8 +1,10 @@
 from transformers import AutoTokenizer
 import torch
 
-# tokenizer = AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
-tokenizer = AutoTokenizer.from_pretrained('microsoft/phi-2')
+from huggingface_hub import login
+login(token='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')
+tokenizer = AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
+# tokenizer = AutoTokenizer.from_pretrained('microsoft/phi-2')
 print(len(tokenizer))
 
 ids = torch.Tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
@@ -16,7 +18,7 @@ print(tokenizer.unk_token, tokenizer.unk_token_id,
 
 visual_tokens_to_add = ['<v' + str(i) + '>' for i in range(0, 2048)]
 num_added_visual_tokens = tokenizer.add_special_tokens({'additional_special_tokens': visual_tokens_to_add})
-print(tokenizer.convert_tokens_to_ids(['<v1>']))
+print(tokenizer.convert_tokens_to_ids(['<v0>']))
 
 action_tokens_to_add = ['<a' + str(i) + '>' for i in range(0, 256)]
 num_added_action_tokens = tokenizer.add_special_tokens({'additional_special_tokens': action_tokens_to_add})
@@ -25,8 +27,11 @@ num_added_action_tokens = tokenizer.add_special_tokens({'additional_special_toke
 special_tokens = ['<bot_i>', '<eot_i>', '<bov_i>', '<eov_i>', '<boa_i>', '<eoa_i>', 
                         '<bov_o>', '<eov_o>', '<boa_o>', '<eoa_o>']
 
+
 num_added_special_tokens = tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
-# print('map', tokenizer.special_tokens_map['additional_special_tokens']['<boa_i>'])
+
+# print the ids of the special tokens
+print(tokenizer.convert_tokens_to_ids(special_tokens))
 
 print("We have added", num_added_special_tokens, "tokens")
 
@@ -40,7 +45,7 @@ print("We have added", num_added_special_tokens, "tokens")
 # tokens = tokenizer.convert_ids_to_tokens(ids)
 # print(tokens)
 
-text_with_new_tokens = "How are you?"
+text_with_new_tokens = ""
 # text_with_new_tokens = "<bov_i>This is a sample text.<bov_i><v1><v2><eoa_i><v3>"
 tokens_with_new_tokens = tokenizer(text_with_new_tokens)
 

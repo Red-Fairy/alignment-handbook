@@ -47,7 +47,8 @@ def gen(shards, num_input, num_output, vocab_size, num_visual_tokens, num_action
                 ret['input_action'] = np.array(instance_info['Action'][start_frame:start_frame+num_input-1], dtype=np.int32).flatten() + num_visual_tokens + vocab_size
                 ret['output_action'] = np.array(instance_info['Action'][start_frame+num_input-1:start_frame+num_input+num_output-1], dtype=np.int32).flatten() + num_visual_tokens + vocab_size
                 ret['task_description'] = instance_info['Text']
-                ret['plan_description'] = instance_info['Plan'] if 'Plan' in instance_info else ''
+                ret['input_plan_description'] = instance_info['Plan'][start_frame] if 'Plan' in instance_info else ''
+                ret['output_plan_description'] = instance_info['Plan'][start_frame+num_input] if 'Plan' in instance_info else ''
                 yield ret
 
 def get_VLA_dataset(args, vocab_size, split='train'):
