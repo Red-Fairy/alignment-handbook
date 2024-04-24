@@ -3,8 +3,8 @@ import torch
 
 from huggingface_hub import login
 login(token='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')
-tokenizer = AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
-# tokenizer = AutoTokenizer.from_pretrained('microsoft/phi-2')
+# tokenizer = AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
+tokenizer = AutoTokenizer.from_pretrained('microsoft/phi-2')
 print(len(tokenizer))
 
 ids = torch.Tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
