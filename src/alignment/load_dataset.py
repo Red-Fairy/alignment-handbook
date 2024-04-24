@@ -51,6 +51,15 @@ def gen(shards, num_input, num_output, vocab_size, num_visual_tokens, num_action
                 ret['output_plan_description'] = instance_info['Plan'][start_frame+num_input] if 'Plan' in instance_info else ''
                 yield ret
 
+def get_VLA_dataset_legacy(args, vocab_size, split='train'):
+    root = args.data_root
+    file_format = 'data_bridge2_processed_{}.jsonl'
+    shards = [os.path.join(root, split, file_format.format(i)) for i in range(len(os.listdir(os.path.join(root, split))))]
+    ds = Dataset.from_generator(gen_legacy, gen_kwargs={"shards": shards, "vocab_size": vocab_size, 
+                                                         "num_visual_tokens": args.num_visual_tokens, "num_action_tokens": args.num_action_tokens,
+                                                        "num_input": args.num_input_frames, "num_output": args.num_output_frames})
+    return ds
+
 def get_VLA_dataset(args, vocab_size, split='train'):
     root = args.data_root
     file_format = 'data_bridge2_processed_{}.jsonl'
