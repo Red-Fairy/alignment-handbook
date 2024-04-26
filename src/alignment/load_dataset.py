@@ -13,7 +13,7 @@ output: a list of dictionaries, each dictionary contains the following fields:
     'input_visual', 'output_visual', 'input_action', 'output_action' are torch tensors
 '''
 
-def gen_legacy(shards, num_input, num_output, vocab_size, num_visual_tokens, num_action_tokens):
+def gen_legacy(shards, num_input, num_output, vocab_size, num_visual_tokens, num_action_tokens, start_frame_idx=None):
     for shard in shards:
         with open(shard, "r") as f:
             for line in f:
@@ -23,7 +23,7 @@ def gen_legacy(shards, num_input, num_output, vocab_size, num_visual_tokens, num
                 # randomly select num_input+num_output consecutive frames
                 if num_frames < num_input + num_output:
                     continue
-                start_frame = random.randint(0, num_frames - num_input - num_output)
+                start_frame = random.randint(0, num_frames - num_input - num_output) if start_frame_idx is None else start_frame_idx
                 ret['input_visual'] = np.array(instance_info['Visual'][start_frame:start_frame+num_input], dtype=np.int32).flatten() + vocab_size
                 ret['output_visual'] = np.array(instance_info['Visual'][start_frame+num_input:start_frame+num_input+num_output], dtype=np.int32).flatten() + vocab_size
                 ret['input_action'] = np.array(instance_info['Action'][start_frame:start_frame+num_input], dtype=np.int32).flatten() + num_visual_tokens + vocab_size
@@ -60,13 +60,23 @@ def gen(shards, num_input, num_output, vocab_size, num_visual_tokens, num_action
                 ret['output_plan_description'] = instance_info['Plan'][start_frame+num_input] if 'Plan' in instance_info else ''
                 yield ret
 
+def get_VLA_dataset_legacy(args, vocab_size, split='train'):
+    root = args.data_root
+    file_format = 'data_bridge2_processed_{}.jsonl'
+    shards = [os.path.join(root, split, file_format.format(i)) for i in range(len(os.listdir(os.path.join(root, split))))]
+    ds = Dataset.from_generator(gen_legacy, gen_kwargs={"shards": shards, "vocab_size": vocab_size, 
+                                                         "num_visual_tokens": args.num_visual_tokens, "num_action_tokens": args.num_action_tokens,
+                                                        "num_input": args.num_input_frames, "num_output": args.num_output_frames})
+    return ds
+
 def get_VLA_dataset(args, vocab_size, split='train'):
     root = args.data_root
     file_format = 'data_bridge2_processed_{}.jsonl'
     shards = [os.path.join(root, split, file_format.format(i)) for i in range(len(os.listdir(os.path.join(root, split))))]
     ds = Dataset.from_generator(gen, gen_kwargs={"shards": shards, "vocab_size": vocab_size, 
                                                          "num_visual_tokens": args.num_visual_tokens, "num_action_tokens": args.num_action_tokens,
-                                                        "num_input": args.num_input_frames, "num_output": args.num_output_frames})
+                                                        "num_input": args.num_input_frames, "num_output": args.num_output_frames,
+                                                        "start_frame_idx": start_frame_idx})
     return ds
 
 def gen_processed(shards, num_input, num_output, eos_token):
