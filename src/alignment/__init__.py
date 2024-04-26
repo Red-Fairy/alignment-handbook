@@ -11,4 +11,4 @@ from .model_utils import (
     get_tokenizer,
     is_adapter_model,
 )
-from .load_dataset import get_VLA_dataloader, get_VLA_dataset, get_VLA_dataset_legacy
+from .load_dataset import get_VLA_dataloader, get_VLA_dataset, get_VLA_dataset_legacy, get_VLA_dataset_processed
