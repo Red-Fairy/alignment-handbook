@@ -46,24 +46,32 @@ def VLA_dataset_generator(shards, eos_token, num_input=6, num_output=6):
                 num_frames = instance_info["frame_number"]
                 if num_frames < num_input + num_output:
                     continue
-                for start_frame in range(0, num_frames // 6 - 1):
-                    out = {}
-                    if start_frame == 0:
-                        out['input_visual'] = np.array(instance_info['vision_tokens'][0], dtype=np.int32).flatten()
-                        out['output_visual'] = np.array(instance_info['vision_tokens'][1], dtype=np.int32).flatten()
-                        out['input_action'] = np.array([instance_info['action_tokens'][-1]] * 5, dtype=np.int32).flatten()
-                        out['output_action'] = np.array([instance_info['action_tokens'][-1]] + instance_info['action_tokens'][0:5], dtype=np.int32).flatten()
-                    else:
-                        out['input_visual'] = np.array(instance_info['vision_tokens'][start_frame], dtype=np.int32).flatten()
-                        out['output_visual'] = np.array(instance_info['vision_tokens'][start_frame+1], dtype=np.int32).flatten()
-                        out['input_action'] = np.array(instance_info['action_tokens'][6*start_frame-6:6*start_frame-2], dtype=np.int32).flatten()
-                        out['output_action'] = np.array(instance_info['action_tokens'][6*start_frame-1:6*start_frame+4], dtype=np.int32).flatten()
-                    out['plan_description'] = instance_info['descriptions'][0] if start_frame == 0 else instance_info['descriptions'][6*start_frame-1]
-                    
-                    ret = {}
-                    ret['text'] = '<bot_i>' + instance_info['trajectory_language'] + out['plan_description'] + '<eot_i>' + \
-                            '<bov_i>' + ''.join([f'<v{str(x)}>' for x in out['input_visual']]) + '<eov_i>' + \
-                            '<boa_i>' + ''.join([f'<a{str(x)}>' for x in out['input_action']]) + '<eoa_i>' + \
-                            '<bot_o>' + instance_info['descriptions'][start_frame+1] + '<eot_o>' + \
-                            '<bov_o>' + ''.join([f'<v{str(x)}>' for x in out['output_visual']]) + '<eov_o>' + \
-                            '<boa_o>' + ''.join([f'<a{str(x)}>' for x in out['output_action']]) + '<eoa_o>' + eos_token
+                # randomly sample a start frame from 0 ... num_frames // 6 - 1
+                start_frame = random.randint(0, num_frames // 6 - 1)
+                out = {}
+                if start_frame == 0:
+                    out['input_visual'] = np.array(instance_info['vision_tokens'][0], dtype=np.int32).flatten()
+                    out['output_visual'] = np.array(instance_info['vision_tokens'][1], dtype=np.int32).flatten()
+                    out['input_action'] = np.array([instance_info['action_tokens'][-1]] * 5, dtype=np.int32).flatten()
+                    out['output_action'] = np.array([instance_info['action_tokens'][-1]] + instance_info['action_tokens'][0:5], dtype=np.int32).flatten()
+                else:
+                    out['input_visual'] = np.array(instance_info['vision_tokens'][start_frame], dtype=np.int32).flatten()
+                    out['output_visual'] = np.array(instance_info['vision_tokens'][start_frame+1], dtype=np.int32).flatten()
+                    out['input_action'] = np.array(instance_info['action_tokens'][6*start_frame-6:6*start_frame-2], dtype=np.int32).flatten()
+                    out['output_action'] = np.array(instance_info['action_tokens'][6*start_frame-1:6*start_frame+4], dtype=np.int32).flatten()
+                out['plan_description'] = instance_info['descriptions'][0] if start_frame == 0 else instance_info['descriptions'][6*start_frame-1]
+                
+                ret = {}
+                ret['text'] = '<bot_i>' + instance_info['trajectory_language'] + out['plan_description'] + '<eot_i>' + \
+                        '<bov_i>' + ''.join([f'<v{str(x)}>' for x in out['input_visual']]) + '<eov_i>' + \
+                        '<boa_i>' + ''.join([f'<a{str(x)}>' for x in out['input_action']]) + '<eoa_i>' + \
+                        '<bot_o>' + instance_info['descriptions'][start_frame+1] + '<eot_o>' + \
+                        '<bov_o>' + ''.join([f'<v{str(x)}>' for x in out['output_visual']]) + '<eov_o>' + \
+                        '<boa_o>' + ''.join([f'<a{str(x)}>' for x in out['output_action']]) + '<eoa_o>' + eos_token
+
+def get_preprocessed_VLA_dataset(args, eos_token, split='train'):
+    root = args.data_root
+    file_format = 'data_bridge2_processed_{}.jsonl'
+    shards = [os.path.join(root, split, file_format.format(i)) for i in range(len(os.listdir(os.path.join(root, split))))]
+    ds = IterableDataset(VLA_dataset_generator, gen_kwargs={"shards": shards, "eos_token": eos_token})
+    return ds
